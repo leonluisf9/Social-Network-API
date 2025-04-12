@@ -1,47 +1,62 @@
-import { Schema, model, type Document } from 'mongoose';
+import { Schema, Document, model, Types } from 'mongoose';
 
-interface ICourse extends Document {
-    name: string,
-    inPerson: boolean,
-    start: Date,
-    end: Date,
-    students: Schema.Types.ObjectId[]
+interface IReaction extends Document {
+  reactionId: Schema.Types.ObjectId;
+  reactionBody: String;
+  username: String;
+  createdAt: Date;
 }
 
-const courseSchema = new Schema<ICourse>(
-    {
-        name: {
-            type: String,
-            required: true,
-        },
-        inPerson: {
-            type: Boolean,
-            default: true,
-        },
-        start: {
-            type: Date,
-            default: Date.now(),
-        },
-        end: {
-            type: Date,
-            // Sets a default value of 12 weeks from now
-            default: () => new Date(+new Date() + 84 * 24 * 60 * 60 * 1000),
-        },
-        students: [
-            {
-                type: Schema.Types.ObjectId,
-                ref: 'student',
-            },
-        ],
-    },
-    {
-        toJSON: {
-            virtuals: true,
-        },
-        timestamps: true
-    },
-);
+interface IThought extends Document {
+  thoughtText: string,
+  createdAt: Date,
+  username: string,
+  reactions: IReaction[];
+}
 
-const Course = model<ICourse>('Course', courseSchema);
+const reactionSchema = new Schema<IReaction>({ 
+  reactionId: {
+    type: Schema.Types.ObjectId,
+    default: () => new Types.ObjectId(),
+  },
+  reactionBody: {
+    type: String,
+    required: true,
+    maxlength: 280, 
+  },
+  username: {
+    type: String,
+    maxlength: 280,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    get: (createdAt: any) => createdAt.toLocaleString()
+  }
+});
 
-export default Course;
+const thoughtSchema = new Schema<IThought>({
+  thoughtText: {
+    type: String,
+    required: true,
+    minlength: 1,
+    maxlength: 280,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    get: (createdAt: any) => createdAt.toLocaleString()
+  },
+  username: {
+    type: String,
+    required: true,
+  },
+  reactions: [reactionSchema]
+});
+
+thoughtSchema.virtual('reactionCount').get(function (this: IThought) {
+  return this.reactions.length;
+})
+
+const Thought = model<IThought>('Thought', thoughtSchema);
+export default Thought;
