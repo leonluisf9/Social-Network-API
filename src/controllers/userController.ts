@@ -1,177 +1,128 @@
+import User from '../models/User.js';
 import { Request, Response } from 'express';
-import { ObjectId } from 'mongodb';
-import { Student, Course } from '../models/index.js';
 
-// Aggregate function to get number of students overall
-
-export const headCount = async () => {
-    const numberOfStudents = await Student.aggregate()
-        .count('studentCount');
-    return numberOfStudents;
+export const getUsers = async (_req: Request, res: Response) => {
+  try {
+    const users = await User.find();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json(error);
+  }
 }
 
-// Aggregate function for getting the overall grade using $avg
-export const grade = async (studentId: string) =>
-    Student.aggregate([
-        // only include the given student by using $match
-        { $match: { _id: new ObjectId(studentId) } },
-        {
-            $unwind: '$assignments',
-        },
-        {
-            $group: {
-                _id: new ObjectId(studentId),
-                overallGrade: { $avg: '$assignments.score' },
-            },
-        },
-    ]);
+export const getSingleUser = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findOne({ _id: req.params.userId })
+      .select('-__v')
+      .populate('thoughts')
+      .populate('friends'); 
 
-/**
- * GET All Students /students
- * @returns an array of Students
-*/
-export const getAllStudents = async (_req: Request, res: Response) => {
-    try {
-        const students = await Student.find();
-
-        const studentObj = {
-            students,
-            headCount: await headCount(),
-        }
-
-        res.json(studentObj);
-    } catch (error: any) {
-        res.status(500).json({
-            message: error.message
-        });
+    if (!user) {
+    res.status(404).json({ message: 'User not found' });
+    } else {
+      res.json(user);
     }
-}
-
-/**
- * GET Student based on id /students/:id
- * @param string id
- * @returns a single Student object
-*/
-export const getStudentById = async (req: Request, res: Response) => {
-    const { studentId } = req.params;
-    try {
-        const student = await Student.findById(studentId);
-        if (student) {
-            res.json({
-                student,
-                grade: await grade(studentId)
-            });
-        } else {
-            res.status(404).json({
-                message: 'Student not found'
-            });
-        }
-    } catch (error: any) {
-        res.status(500).json({
-            message: error.message
-        });
-    }
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving user data', error });
+  }
 };
 
-/**
- * POST Student /students
- * @param object student
- * @returns a single Student object
-*/
-
-export const createStudent = async (req: Request, res: Response) => {
-    try {
-        const student = await Student.create(req.body);
-        res.json(student);
-    } catch (err) {
-        res.status(500).json(err);
-    }
-}
-/**
- * DELETE Student based on id /students/:id
- * @param string id
- * @returns string 
-*/
-
-export const deleteStudent = async (req: Request, res: Response) => {
-    try {
-        const student = await Student.findOneAndDelete({ _id: req.params.studentId });
-
-        if (!student) {
-            return res.status(404).json({ message: 'No such student exists' });
-        }
-
-        const course = await Course.findOneAndUpdate(
-            { students: req.params.studentId },
-            { $pull: { students: req.params.studentId } },
-            { new: true }
-        );
-
-        if (!course) {
-            return res.status(404).json({
-                message: 'Student deleted, but no courses found',
-            });
-        }
-
-        return res.json({ message: 'Student successfully deleted' });
-    } catch (err) {
-        console.log(err);
-        return res.status(500).json(err);
-    }
+export const createUser = async (req: Request, res: Response) => {
+  try {
+    const userData = await User.create(req.body);
+    res.json(userData);
+  } catch (error) {
+    res.status(500).json(error);
+  }
 }
 
-/**
- * POST Assignment based on /students/:studentId/assignments
- * @param string id
- * @param object assignment
- * @returns object student 
-*/
-
-export const addAssignment = async (req: Request, res: Response) => {
-    console.log('You are adding an assignment');
-    console.log(req.body);
-    try {
-        const student = await Student.findOneAndUpdate(
-            { _id: req.params.studentId },
-            { $addToSet: { assignments: req.body } },
-            { runValidators: true, new: true }
-        );
-
-        if (!student) {
-            return res
-                .status(404)
-                .json({ message: 'No student found with that ID :(' });
-        }
-
-        return res.json(student);
-    } catch (err) {
-        return res.status(500).json(err);
+export const updateUser = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const user = await User.findOneAndUpdate(
+      { _id: req.params.userId },
+      { $set: req.body },
+      { runValidators: true, new: true }
+    );
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
     }
+    // Update user with the new data
+    res.status(200).json({ message: 'User updated successfully', user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await User.findOneAndDelete({ _id: req.params.userId });
+    if (!user) {
+      res.status(404).json({ message: 'No thought with this id' });
+    }
+    if (!user) {
+      res.status(404).json({
+        message: 'User created but no user with this id!',
+      });
+    }
+    res.json({ message: 'User successfully deleted!' });
+    return;
+  } catch (error) {
+    res.status(500).json(error);
+    return;
+  }
 }
 
-/**
- * DELETE Assignment based on /students/:studentId/assignments
- * @param string assignmentId
- * @param string studentId
- * @returns object student 
-*/
+export const addFriend = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId, friendId } = req.params;
 
-export const removeAssignment = async (req: Request, res: Response) => {
-    try {
-        const student = await Student.findOneAndUpdate(
-            { _id: req.params.studentId },
-            { $pull: { assignments: { assignmentId: req.params.assignmentId } } },
-            { runValidators: true, new: true }
-        );
-
-        if (!student) {
-            return res
-                .status(404)
-                .json({ message: 'No student found with that ID :(' });
-        }
-
-        return res.json(student);
-    } catch (err) {
-        return res.status(500).json(err);
+    if (userId === friendId) {
+      return res.status(400).json({ message: 'You cannot add yourself as a friend' });
     }
-}
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { friends: friendId } },
+      { new: true, runValidators: true }
+    ).populate('friends');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const friend = await User.findByIdAndUpdate(
+      friendId,
+      { $addToSet: { friends: userId } },
+      { new: true, runValidators: true }
+    ).populate('friends');
+
+    if (!friend) {
+      return res.status(404).json({ message: 'Friend not found.' });
+    }
+
+    return res.status(200).json({ message: 'Friend added successfully!', user, friend });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
+export const removeFriend = async (req: Request, res: Response) => {
+  try {
+    const { userId, friendId } = req.params;
+    const user = await User.findByIdAndUpdate(userId, {$pull: {friends: friendId }}, {new:true}).populate('friends');
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+    }
+    const friend = await User.findByIdAndUpdate(friendId, {$pull: {friends: userId}}, {new: true }).populate('friends');
+    if (!friend) {
+      res.status(404).json({ message: 'Friend not found' });
+    } 
+    res.status(200).json({message: 'Friend removed successfully!'});
+  } catch (error) {
+    console.error(error);
+      res.status(500).json({ message: 'Server error', error});
+  }
+};
