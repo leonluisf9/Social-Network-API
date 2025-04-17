@@ -1,14 +1,12 @@
 import mongoose from 'mongoose';
 
-const db = async (): Promise<typeof mongoose.connection> =>{
-    try {
-        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/studentsDB');
-        console.log('Database connected.');
-        return mongoose.connection;
-    } catch(error) {
-        console.error('Database connection error:', error);
-        throw new Error('Database connection failed.');
-    }
-}
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialnetworkDB';
 
-export default db;
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('Database connected.'))
+  .catch((error) => {
+    console.error('Database connection error:', error);
+    process.exit(1); 
+  });
+
+export default mongoose.connection;
