@@ -21,6 +21,7 @@ export const createThought = async (req: Request, res: Response) => {
     );
 
     if (!user) {
+      console.log(user);
       return res.status(404).json({ message: 'thought created, but found no user with that ID' })
     }
     res.json('Created the thought');
