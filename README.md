@@ -12,7 +12,11 @@
 ## Description
 The Social Network API is designed for a web application where users can share their thoughts, interact with friends' thoughts, and manage a friend list.
 ## Installation
-Clone the repository: https://github.com/leonluisf9/Social-Network-API Navigate to the project directory: Install dependencies: Setup MongoDB and Start the development server:
+Clone the repository: https://github.com/leonluisf9/Social-Network-API 
+Navigate to the project directory: cd project-directory
+Install dependencies: npm install
+Setup MongoDB 
+Start the development server: npm run start
 ## Usage
 Use Postman or Insomnia to interact with the API and test endpoints.Ensure your MongoDB database is properly connected and operational.The API supports all CRUD operations for users, thoughts, and reactions.
 ## Contributing
